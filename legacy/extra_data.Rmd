@@ -1,0 +1,67 @@
+### 外部数据处理
+
+```{r}
+{
+    library(GEOquery)
+    library(hgu133plus2.db)
+    library(hgu133a.db)
+    rmDupID <- function(a){
+        exprdata <- a[,-1]
+        rowMeans <- apply(exprdata, 1, function(x){mean(as.numeric(x))})
+        a=a[order(rowMeans,decreasing=T),]
+        exprdata <- a[!duplicated(a[,1]),]
+        exprdata <- exprdata[!is.na(exprdata[,1]),]
+        rownames(exprdata)=exprdata[,1]
+        exprdata=exprdata[,-1]
+        return(exprdata)
+    }
+}
+
+```
+
+```{r}
+library(stringr)
+library(AnnoProbe)
+library(GEOquery)
+library(limma)
+
+id = "GSE76427"
+
+gset <- getGEO(id, GSEMatrix =TRUE, AnnotGPL=FALSE, destdir = "./ref/Extra_data/GSE31023")
+pd <- pData(phenoData(gset$GSE31023_series_matrix.txt.gz))
+
+getGEOSuppFiles(id, baseDir = "./ref/Extra_data/")
+system("cd /public/workspace/zhumy/CRC2Liver2/ref/Extra_data/;gunzip GSE31023_series_matrix.txt.gz;tar -xf ./GSE31023/GSE31023_RAW.tar")
+system("cd /public/workspace/zhumy/CRC2Liver2/ref/Extra_data/GSE31023;tar -xf GSE31023_RAW.tar")
+files = list.files("/public/workspace/zhumy/CRC2Liver2/ref/Extra_data/GSE31023")
+files = files[str_detect(files, "txt.gz")]
+rawdata <- limma::read.maimages(str_c("/public/workspace/zhumy/CRC2Liver2/ref/Extra_data/GSE31023/", files),
+                   source="agilent", 
+                   green.only=TRUE,
+                   other.columns = "gIsWellAboveBG")
+dat <- backgroundCorrect(rawdata, method="normexp")
+dat <- normalizeBetweenArrays(dat, method="quantile")
+
+Control <- dat$genes$ControlType==1L;table(Control)
+NoSymbol <- is.na(dat$genes$GeneName);table(NoSymbol)
+IsExpr <- rowSums(dat$other$gIsWellAboveBG > 0) >= 6;table(IsExpr)
+dat_filtered <- dat[!Control & !NoSymbol & IsExpr, ]
+exp = as.data.frame(dat_filtered@.Data[[1]])
+colnames(exp) <- sapply(colnames(exp), function(x) {strsplit(x, split="\\/")[[1]][9]})
+colnames(exp) <- str_replace_all(colnames(exp), "\\.txt", "")
+exp1 <- data.frame(id = dat_filtered$genes$GeneName, exp)
+rmDupID <- function(a){
+	exprdata <- a[,-1]
+	rowMeans <- apply(exprdata, 1, function(x){mean(as.numeric(x))})
+	a=a[order(rowMeans,decreasing=T),]
+	exprdata <- a[!duplicated(a[,1]),]
+	exprdata <- exprdata[!is.na(exprdata[,1]),]
+	rownames(exprdata)=exprdata[,1]
+  	exprdata=exprdata[,-1]
+  	return(exprdata)
+}
+exp2 = rmDupID(exp1)
+phenotype <- as.data.frame(gset$GSE31023_series_matrix.txt.gz@phenoData@data)
+dat <- list(expression = exp2, phenotype = phenotype)
+saveRDS(dat, "./ref/Extra_data/GSE31023_new.RDS")
+```

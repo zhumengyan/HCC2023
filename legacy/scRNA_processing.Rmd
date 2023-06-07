@@ -1,0 +1,68 @@
+### 单细胞数据的处理
+
+```{r}
+{
+    source('/public/workspace/zhumy/test/panyuqin_hcc/HCC2023/utils.R')
+    source('/public/workspace/zhumy/test/panyuqin_hcc/HCC2023/utils_plot.R')
+}
+```
+
+
+```{r}
+### GSE189903
+{
+    dat = Seurat::Read10X("/public/workspace/zhumy/test/panyuqin_hcc/ref/GEO/GSE189903")
+    seuratObj = CreateSeuratObject(dat, project="GSE189903", min.cells = 3, min.features = 200)
+    info = read_delim(gzfile("/public/workspace/zhumy/test/panyuqin_hcc/ref/GEO/GSE189903/GSE189903_Info.txt.gz"))
+    all(info$Cell == colnames(seuratObj))
+    seuratObj$S_ID <- info$info
+    seuratObj$Sample <- info$Sample
+    seuratObj$Type <- info$Type
+
+    seuratObj$percent.mt <- PercentageFeatureSet(seuratObj, pattern = "^MT-")
+    ribogenes <- union(rownames(seuratObj)[str_detect(rownames(seuratObj), "^RPS")],rownames(seuratObj)[str_detect(rownames(seuratObj), "^RPL")])
+    seuratObj$percent.ribo <- PercentageFeatureSet(seuratObj, feature = ribogenes)
+    HB.genes <- c("HBA1","HBA2","HBB","HBD","HBE1","HBG1","HBG2","HBM","HBQ1","HBZ")
+    seuratObj$percent.hb <- PercentageFeatureSet(seuratObj, features=intersect(HB.genes, rownames(seuratObj)))
+
+    minGene=200
+    maxGene=6000
+    minUMI=500
+    maxUMI=10000
+    pctMT=20
+    pctHB=0
+    seuratObj1 <- subset(seuratObj, subset=nFeature_RNA<maxGene & nFeature_RNA > minGene & nCount_RNA > minUMI & nCount_RNA < maxUMI & percent.mt < pctMT & percent.ribo<pctRibo & percent.hb <= pctHB)
+
+}
+
+### GSE156625
+{
+    dat = Seurat::Read10X("/public/workspace/zhumy/test/panyuqin_hcc/ref/GEO/GSE156625")
+    seuratObj = CreateSeuratObject(dat, project="GSE156625", min.cells = 3, min.features = 200)
+
+    seuratObj$percent.mt <- PercentageFeatureSet(seuratObj, pattern = "^MT-")
+    ribogenes <- union(rownames(seuratObj)[str_detect(rownames(seuratObj), "^RPS")],rownames(seuratObj)[str_detect(rownames(seuratObj), "^RPL")])
+    seuratObj$percent.ribo <- PercentageFeatureSet(seuratObj, feature = ribogenes)
+    HB.genes <- c("HBA1","HBA2","HBB","HBD","HBE1","HBG1","HBG2","HBM","HBQ1","HBZ")
+    seuratObj$percent.hb <- PercentageFeatureSet(seuratObj, features=intersect(HB.genes, rownames(seuratObj)))
+
+    minGene=200
+    maxGene=6000
+    minUMI=500
+    maxUMI=10000
+    pctMT=20
+    pctHB=0
+    seuratObj1 <- subset(seuratObj, subset=nFeature_RNA<maxGene & nFeature_RNA > minGene & nCount_RNA > minUMI & nCount_RNA < maxUMI & percent.mt < pctMT & percent.ribo<pctRibo & percent.hb <= pctHB)
+
+}
+
+### GSE151530
+{
+
+}
+
+### CNP0000650
+```
+
+
+
